@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>统一身份认证平台</title>
+    <script type="text/javascript" src="./libs/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="./libs/sweetalert.min.js"></script>
+    <script>
+        var SSORoot = 'https://passport.dingstudio.cn/sso';
+        var QueryServlet = SSORoot + '/api?format=json&action=status';
+        var LoginServlet = SSORoot + '/login?mod=caslogin&returnUrl=' + encodeURIComponent(window.location.href);
+        document.onreadystatechange = function () {
+            if (document.readyState == 'complete') {
+                $.ajax({
+                    url: QueryServlet,
+                    method: 'get',
+                    data: {
+                        'hostname': window.location.hostname,
+                        'requests': Date.parse(new Date()) / 1000
+                    },
+                    dataType: 'jsonp',
+                    jsonp: 'callback',
+                    success: function (response) {
+                        if (response.data.authcode === 1) {
+                            $('#statusBox').css('color', 'green');
+                            $('#statusBox').html('正在为您创建会话。');
+                            var stoken = response.data.token;
+                            $.ajax({
+                                url: './sso-login.php',
+                                method: 'post',
+                                data: {
+                                    'token': stoken,
+                                    'requests': Date.parse(new Date()) / 1000
+                                },
+                                dataType: 'json',
+                                success: function (response) {
+                                    if (response.code === 200) {
+                                        $('#statusBox').css('color', 'green');
+                                        $('#statusBox').html('登录成功，正在跳转。');
+                                        location.href = '../../../../?auth=1';
+                                    }
+                                    else {
+                                        $('#statusBox').css('color', 'orangered');
+                                        $('#statusBox').html('互联登录过程中出现网络异常，请稍候重试。');
+                                    }
+                                },
+                                error: function (data) {
+                                    if (data.status == 500) {
+                                        $('#statusBox').css('color', 'blue');
+                                        $('#statusBox').html(data.responseJSON.message);
+                                        swal({
+                                            title: "系统异常",
+                                            text: data.responseJSON.message,
+                                            icon: "error",
+                                            buttons: "确认",
+                                            dangerMode: false,
+                                            closeOnClickOutside: false,
+                                        });
+                                    }
+                                    else {
+                                        setTimeout(() => {
+                                            $('#statusBox').css('color', 'orangered');
+                                            $('#statusBox').html('目标应用系统响应超时，身份认证无法继续。');
+                                        }, 500);
+                                    }
+                                }
+                            });
+                        }
+                        else {
+                            $('#statusBox').css('color', 'orangered');
+                            $('#statusBox').html('正在跳转。');
+                            setTimeout(() => {
+                                location.href = LoginServlet;
+                            }, 500);
+                        }
+                    },
+                    error: function (data) {
+                        $('#statusBox').css('color', 'red');
+                        $('#statusBox').html('无法与统一身份认证服务器正常通信，请联系认证域管理员确认是否正确接入！');
+                    }
+                });
+            }
+        }
+    </script>
+</head>
+<body>
+    <h3 id="statusBox">请稍候</h3>
+</body>
+</html>

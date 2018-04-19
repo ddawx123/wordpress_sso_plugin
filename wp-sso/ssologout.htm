@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>统一身份认证平台</title>
+    <script type="text/javascript" src="./libs/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="./libs/sweetalert.min.js"></script>
+    <script>
+        var SSORoot = 'https://passport.dingstudio.cn/sso';
+        var QueryServlet = SSORoot + '/api?format=json&action=status';
+        var LogoutServlet = SSORoot + '/api?format=json&action=logout';
+        document.onreadystatechange = function () {
+            if (document.readyState == 'complete') {
+                $.ajax({
+                    url: QueryServlet,
+                    method: 'get',
+                    data: {
+                        'hostname': window.location.hostname,
+                        'requests': Date.parse(new Date()) / 1000
+                    },
+                    dataType: 'jsonp',
+                    jsonp: 'callback',
+                    success: function (response) {
+                        if (response.data.authcode === 1) {
+                            $('#statusBox').css('color', 'green');
+                            $('#statusBox').html('正在退出。');
+                            var stoken = response.data.token;
+                            $.ajax({
+                                url: LogoutServlet,
+                                method: 'get',
+                                data: {
+                                    'token': stoken,
+                                    'requests': Date.parse(new Date()) / 1000
+                                },
+                                dataType: 'jsonp',
+                                jsonp: 'callback',
+                                success: function (response) {
+                                    if (response.code === 200) {
+                                        $('#statusBox').css('color', 'green');
+                                        $('#statusBox').html('正在跳转。');
+                                        location.href = '../../../../?loggedout=true';
+                                    }
+                                    else {
+                                        $('#statusBox').css('color', 'orangered');
+                                        $('#statusBox').html('互联登录过程中出现网络异常，请稍候重试。');
+                                    }
+                                },
+                                error: function (data) {
+                                    swal({
+                                        title: "系统异常",
+                                        text: "交互式登录处理失败，请稍后重试。",
+                                        icon: "error",
+                                        buttons: "确认",
+                                        dangerMode: false,
+                                        closeOnClickOutside: false,
+                                    });
+                                }
+                            });
+                        }
+                        else {
+                            $('#statusBox').css('color', 'orangered');
+                            $('#statusBox').html('正在跳转。');
+                            setTimeout(() => {
+                                location.href = './ssologin.htm';
+                            }, 500);
+                        }
+                    },
+                    error: function (data) {
+                        $('#statusBox').css('color', 'red');
+                        $('#statusBox').html('无法与统一身份认证服务器正常通信，请联系认证域管理员确认是否正确接入！');
+                    }
+                });
+            }
+        }
+    </script>
+</head>
+<body>
+    <h3 id="statusBox">请稍候</h3>
+</body>
+</html>
